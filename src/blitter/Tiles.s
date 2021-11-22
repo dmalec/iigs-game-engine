@@ -113,6 +113,7 @@ RenderTile       ENT
 
 _RenderTile2
                  lda   TileStore+TS_TILE_ID,y         ; build the finalized tile descriptor
+                 ora   #TILE_MASK_BIT
                  ldx   TileStore+TS_SPRITE_FLAG,y     ; This is a bitfield of all the sprites that intersect this tile, only care if non-zero or not
                  beq   :nosprite
 

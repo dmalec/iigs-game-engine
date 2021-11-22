@@ -274,19 +274,6 @@ next
 ; ]2 : tilemask offset
 ; ]3 : code field offset
 CopyMaskedWord  MAC
-                ldal  ]2,x            ; load the mask value
-                bne   mixed           ; a non-zero value may be mixed
-
-; This is a solid word
-                lda   #$00F4          ; PEA instruction
-                sta:  ]3,y
-                ldal  ]1,x            ; load the tile data
-                sta:  ]3+1,y          ; PEA operand
-                bra   next
-
-mixed           cmp   #$FFFF          ; All 1's in the mask is fully transparent
-                beq   transparent
-
 ; This is the slowest path because there is a *lot* of work to do.  So much that it's
 ; worth it to change up the environment to optimize things a bit more.
 ;
@@ -296,46 +283,81 @@ mixed           cmp   #$FFFF          ; All 1's in the mask is fully transparent
 ;            and  #MASK
 ;            ora  #DATA
 
+; TEST
+;            lda  00,s           $A3 $00
+;            and  #MASK          $29 $00 $00
+;            ora  #DATA          $09 $00 $00
+;            ora  (00),y         $11 $00
+
+
                 lda   #$004C          ; JMP instruction
                 sta:  ]3,y
 
                 ldx   _X_REG          ; Get the addressing offset
                 ldal  JTableOffset,x  ; Get the address offset and add to the base address
+                clc
                 adc   _BASE_ADDR      ; of the current code field line
                 adc   #{]3&$F000}     ; adjust for the current row offset
                 sta:  ]3+1,y
-
                 tay                   ; This becomes the new address that we use to patch in
-                txa                   ; Get the offset and render a LDA (dp),y instruction
+
+                ldx   _T_PTR
+                ldal  ]2,x
+                beq   solid           ; LDA #DATA / ORA (00),y
+                cmp   #$FFFF
+                beq   transparent     ; LDA 0,s / ORA (00),y
+
+                sta:  $0003,y
+
+                lda   #$00A3
+                sta:  $0000,y
+
+                ldal  ]1,x
+                sta:  $0006,y
 
                 sep   #$20
-                sta:  $0001,y         ; LDA (00),y operand
-                lda   #$B1
-                sta:  $0000,y         ; LDA (00),y opcode
+                lda   _X_REG
+                sta:  $0009,y         ; ORA (00),y operand
+                lda   #$11
+                sta:  $0008,y         ; ORA (00),y opcode
+
                 lda   #$29
                 sta:  $0002,y         ; AND #$0000 opcode
                 lda   #$09
                 sta:  $0005,y         ; ORA #$0000 opcode
                 rep   #$20
 
-                ldx   _T_PTR          ; restore the original x-register value
-                ldal  ]2,x            ; insert the tile mask and data into the exception
-                sta:  $0003,y         ; handler.
-                ldal  ]1,x
-                sta:  $0006,y
-
-                lda   #$0D80          ; branch to the prologue (BRA *+15)
-                sta:  $0008,y
-
-                ldy   _Y_REG          ; restore original y-register value and move on
+                lda   #$0B80          ; branch to the prologue (BRA *+13)
+                sta:  $000A,y
                 bra   next
 
-; This is a transparent word, so just show the second background layer
+; Just lda #data / ora (0),y
+solid 
+                lda   #$00A9
+                sta:  $0000,y
+                ldal  ]1,x
+                sta:  $0001,y
+                lda   #$0011
+                sta:  $0003,y         ; ORA (00),y opcode
+                lda   _X_REG
+                sta:  $0004,y
+                lda   #$1080          ; branch to the prologue (BRA *+18)
+                sta:  $0005,y
+                bra   next
+
+; Just lda 0,s / ora (0),y
 transparent
-                lda   #$00B1          ; LDA (dp),y instruction
-                sta:  ]3,y
-                lda   _X_REG          ; X is the logical tile offset (0, 2, 4, ... 82) left-to-right
-                ora   #$4800          ; put a PHA after the offset
-                sta:  ]3+1,y
+                lda   #$00A3
+                sta:  $0000,y
+
+                lda   #$0011
+                sta:  $0002,y         ; ORA (00),y opcode
+                lda   _X_REG
+                sta:  $0003,y
+                lda   #$1180          ; branch to the prologue (BRA *+19)
+                sta:  $0004,y
+;                lda   #$1380          ; branch to the prologue (BRA *+19)
+;                sta:  $0002,y
 next
+                ldy   _Y_REG          ; restore original y-register value and move on
                 eom

@@ -5,10 +5,46 @@ _InitBG1
                           rts
 
 
+; Copy a binary image into BG2.  Assumes the file is the correct size (320 x 200)
+;
+; A=low word of picture address
+; X=high word of picture address
+CopyBinToBG2              ENT
+                          phb
+                          phk
+                          plb
+                          jsr   _CopyBinToBG2
+                          plb
+                          rtl
+
+_CopyBinToBG2
+:srcptr                   equ   tmp0
+:line_cnt                 equ   tmp2
+:dstptr                   equ   tmp3
+:col_cnt                  equ   tmp5
+:src_width                equ   tmp6
+:src_height               equ   tmp7
+
+                          clc
+                          adc   #8                        ; Advance over the header
+                          sta   :srcptr
+                          stx   :srcptr+2
+
+                          ldy   #$7CFE
+                          tyx
+:loop                     lda   [:srcptr],y
+                          stal  $002000,x
+                          dex
+                          dex
+                          dey
+                          dey
+                          bpl   :loop
+                          rts
+
 ; Copy a binary image data file into BG1.  Assumes the file is the correct size (328 x 208)
 ;
 ; A=low word of picture address
-; X=high word of pixture address
+; X=high word of picture address
 ; Y=high word of BG1 bank
 CopyBinToBG1              ENT
                           phb

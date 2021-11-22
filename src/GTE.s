@@ -36,6 +36,7 @@ CopyPicToField     EXT
 CopyBinToField     EXT
 CopyPicToBG1       EXT
 CopyBinToBG1       EXT
+CopyBinToBG2       EXT
 
 AddTimer           EXT
 RemoveTimer        EXT
